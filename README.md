@@ -1,4 +1,7 @@
-# Data anonymization using k-Anonymity
+<a href="https://doi.org/10.5281/zenodo.22748399"><img src="https://zenodo.org/badge/370051182.svg" alt="DOI"></a>
+
+
+# Data anonymization using k-Anonymity 
 ## ✔️ Experiments
 - Provides 5 k-anonymization method: 
   - Datafly
@@ -103,3 +106,8 @@ of k-Anonymization Algorithms
 for Practitioners](http://www.tdp.cat/issues11/tdp.a169a14.pdf)
 - [Privacy in a Mobile-Social World](https://courses.cs.duke.edu//fall12/compsci590.3/slides/lec3.pdf)
 - Code and idea based on [k-Anonymity in Practice: How Generalisation and Suppression Affect Machine Learning Classifiers](https://arxiv.org/abs/2102.04763)
+
+## Citation
+```
+Minh-Khoi Pham. (2026). kaylode/k-anonymity: v1 (Version v1) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.22748400
+```
