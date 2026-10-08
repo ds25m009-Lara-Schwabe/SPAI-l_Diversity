@@ -18,6 +18,8 @@ parser.add_argument('--k', type=int, default=2,
                     help="K-Anonymity or L-Diversity")
 parser.add_argument('--dataset', type=str, default='adult',
                     help="Dataset to anonymize")
+#l-diversity extension
+parser.add_argument('--l', type=int, default=None, help="L-Diversity value")
 
 class Anonymizer:
     def __init__(self, args):
@@ -48,7 +50,7 @@ class Anonymizer:
         self.anon_folder = res_folder  # trailing /
         
         os.makedirs(self.anon_folder, exist_ok=True)
-
+# l-diversity extension
     def anonymize(self):
         data = pd.read_csv(self.data_path, delimiter=';')
         ATT_NAMES = list(data.columns)
@@ -56,6 +58,9 @@ class Anonymizer:
         data_params = get_dataset_params(self.data_name)
         QI_INDEX = data_params['qi_index']
         IS_CAT2 = data_params['is_category']
+
+        sensitive_var = data_params['target_var']
+        sensitive_index = ATT_NAMES.index(sensitive_var)
 
         QI_NAMES = list(np.array(ATT_NAMES)[QI_INDEX])
         IS_CAT = [True] * len(QI_INDEX) # is all cat because all hierarchies are provided
@@ -72,13 +77,15 @@ class Anonymizer:
             self.path, 
             self.data_name, 
             QI_INDEX, IS_CAT)
-
+        # l-diversity extension
         anon_params = {
             "name" :self.method,
             "att_trees" :ATT_TREES,
             "value" :self.k,
+            "l": args.l,
             "qi_index" :QI_INDEX, 
-            "sa_index" :SA_INDEX
+            "sa_index" :SA_INDEX,
+            "sensitive_index" :sensitive_index
         }
 
         if self.method == AnonMethod.CLASSIC_MONDRIAN:

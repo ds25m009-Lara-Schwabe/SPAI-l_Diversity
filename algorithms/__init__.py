@@ -40,14 +40,16 @@ def k_anonymize(anon_params):
             anon_params["qi_index"], 
             anon_params["sa_index"], 
             type_alg='kmember')
-
+#l-diversity extension
     if anon_params["name"] == AnonMethod.TOPDOWN:
         return tdg_anonymize(
             anon_params["value"], 
             anon_params["att_trees"], 
             anon_params["data"], 
             anon_params["qi_index"], 
-            anon_params["sa_index"])
+            anon_params["sa_index"],
+            l=anon_params.get("l"),
+            sensitive_index=anon_params.get("sensitive_index"))
 
     if anon_params["name"] == AnonMethod.DATAFLY:
         return datafly_anonymize(

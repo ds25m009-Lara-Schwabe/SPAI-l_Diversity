@@ -14,15 +14,25 @@ from tqdm import tqdm
 from algorithms.basic_mondrian.models.numrange import NumRange
 from algorithms.basic_mondrian.utils.utility import cmp_str, get_num_list_from_str
 
+# l-diversity extension
+from .l_diversity import is_l_diverse
+
+
 __DEBUG = False
 QI_LEN = 5
+
 GL_K = 0
+# l-diversity extension
+GL_L = None
+
 RESULT = []
 ATT_TREES = []
 QI_RANGE = []
 ROUNDS = 3
 IS_CAT = []
 SA_INDEX = []
+# l-diversity extension
+SENSIIVE_INDEX = None
 
 
 class Partition(object):
@@ -247,7 +257,7 @@ def can_split(partition):
         return False
     return True
 
-
+# l-diversity extension
 def anonymize(partition):
     """
     Main procedure of top_down_greedy_anonymization.
@@ -256,47 +266,77 @@ def anonymize(partition):
     if can_split(partition) is False:
         RESULT.append(partition)
         return
+    
     u, v = get_pair(partition)
     sub_partitions = distribute_record(u, v, partition)
+
+    # preserve original k-anonymity balancing logic
     if len(sub_partitions[0]) < GL_K:
         balance(sub_partitions, 0)
     elif len(sub_partitions[1]) < GL_K:
         balance(sub_partitions, 1)
+
+    # If l-diversity is enabled, jefect the split if one of the
+    # resulting partitions violatedd the privacy constraints
+    if GL_L is not None:
+        if not all(is_valid_partition(p) for p in sub_partitions):
+            RESULT.append(partition)
+            return
+    
     # watch dog
     p_sum = len(partition)
     c_sum = 0
+
     for sub_partition in sub_partitions:
         c_sum += len(sub_partition)
+
     if p_sum != c_sum:
         pdb.set_trace()
+
     for sub_partition in sub_partitions:
         anonymize(sub_partition)
 
-
-def init(att_trees, data, k, QI_num, SA_num):
+# l-diversity extension
+def init(att_trees, data, k, QI_num, SA_num, l=None, sensitive_index=None):
     """
     reset all gloabl variables
     """
-    global GL_K, RESULT, QI_LEN, ATT_TREES, QI_RANGE, IS_CAT, SA_INDEX
+    global GL_K, GL_L, RESULT, QI_LEN, ATT_TREES
+    global QI_RANGE, IS_CAT, SA_INDEX, SENSIIVE_INDEX
+
     ATT_TREES = att_trees
+    IS_CAT = []
+
     for t in att_trees:
         if isinstance(t, NumRange):
             IS_CAT.append(False)
         else:
             IS_CAT.append(True)
+
     QI_LEN = QI_num
     SA_INDEX = SA_num
     GL_K = k
+    GL_L = l
+    SENSIIVE_INDEX = sensitive_index
+
+    if GL_L is not None and GL_L < 1:
+        raise ValueError("l must be at least 1")
+
+    if GL_L is not None and SENSIIVE_INDEX is None:
+        raise ValueError("sensitive_index must be provided when l-diversity is enabled")
+
     RESULT = []
     QI_RANGE = []
 
-
-def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num):
+# l-diversity extension
+def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num, l=None, sensitive_index=None):
     """
     Top Down Greedy Anonymization is a heuristic algorithm
     for relational dataset with numeric and categorical attbitues
     """
-    init(att_trees, data, k, QI_num, SA_num)
+    random.seed(42) #better reproducibility of experiments / comparisons more fair
+
+    init(att_trees, data, k, QI_num, SA_num, l=l, sensitive_index=sensitive_index)
     result = []
     middle = []
     for i in tqdm(range(QI_LEN)):
@@ -322,3 +362,17 @@ def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num):
         dp += len(sub_partition) ** 2
 
     return (result, rtime)
+
+# l-diversity extension
+def is_valid_partition(partition):
+    # Check if a partition satisfies the privacy constraints (k, l)
+    #k-anonymity
+    if len(partition) > GL_K:
+        return False
+    
+    #l-diversity, if enabled
+    if GL_L is not None:
+        if not is_l_diverse(partition, GL_L, SENSIIVE_INDEX):
+            return False
+
+    return True
