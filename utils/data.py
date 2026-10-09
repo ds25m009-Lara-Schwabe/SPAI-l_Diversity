@@ -61,18 +61,40 @@ def transform_columns(data):
     return res
 
 
-def write_anon(path, anon_data, header, k, dataset, delimiter=';'):
+def write_anon(
+    path,
+    anon_data,
+    header,
+    k,
+    dataset,
+    l=None,
+    delimiter=';'
+):
     if isinstance(anon_data, dict):
         anon_data = anon_data.values()
     else:
         # Sort by ID (first column)
         anon_data = sorted(anon_data, key=lambda x: int(x[0]))
         anon_data = [anon_data]
+
+    if l is None:
+        filename = f"{dataset}_anonymized_k{k}.csv"
+    else:
+        filename = f"{dataset}_anonymized_k{k}_l{l}.csv"
+
     for i, data in enumerate(anon_data):
-        with open(os.path.join(path, dataset + "_anonymized_" + str(k) + ".csv"), mode='w', newline='') as anon_file:
-            anon_writer = csv.writer(anon_file, delimiter=delimiter)
+        with open(
+            os.path.join(path, filename),
+            mode='w',
+            newline=''
+        ) as anon_file:
+            anon_writer = csv.writer(
+                anon_file,
+                delimiter=delimiter
+            )
             anon_writer.writerow(header)
             anon_writer.writerows(data)
+
     return len(anon_data)
 
 def numberize_categories(data, qi_index, sa_index, is_cat):

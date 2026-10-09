@@ -113,7 +113,8 @@ class Anonymizer:
                 anon_data, 
                 header, 
                 self.k, 
-                self.data_name)
+                self.data_name,
+                l=args.l)
 
         if self.method == AnonMethod.CLASSIC_MONDRIAN:
             ncp_score, runtime = runtime
