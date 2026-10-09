@@ -24,6 +24,7 @@ QI_LEN = 5
 GL_K = 0
 # l-diversity extension
 GL_L = None
+MAX_SPLIT_ATTEMPTS = 10
 
 RESULT = []
 ATT_TREES = []
@@ -32,7 +33,7 @@ ROUNDS = 3
 IS_CAT = []
 SA_INDEX = []
 # l-diversity extension
-SENSIIVE_INDEX = None
+SENSITIVE_INDEX = None
 
 
 class Partition(object):
@@ -257,38 +258,58 @@ def can_split(partition):
         return False
     return True
 
+#l-diversity extension
+def find_valid_split(partition):
+    for _ in range(MAX_SPLIT_ATTEMPTS):
+        u, v = get_pair(partition)
+        sub_partitions = distribute_record(u, v, partition)
+
+        if len(sub_partitions[0]) < GL_K:
+            balance(sub_partitions, 0)
+        elif len(sub_partitions[1]) < GL_K:
+            balance(sub_partitions, 1)
+
+        # A merge is not considered a successful split
+        if len(sub_partitions) != 2:
+            continue
+
+        if all(is_valid_partition(p) for p in sub_partitions):
+            return sub_partitions
+
+    return None
+
 # l-diversity extension
 def anonymize(partition):
     """
     Main procedure of top_down_greedy_anonymization.
-    recursively partition groups until not allowable.
+    Recursively partition groups until not allowable.
     """
+
     if can_split(partition) is False:
         RESULT.append(partition)
         return
-    
-    u, v = get_pair(partition)
-    sub_partitions = distribute_record(u, v, partition)
 
-    # preserve original k-anonymity balancing logic
-    if len(sub_partitions[0]) < GL_K:
-        balance(sub_partitions, 0)
-    elif len(sub_partitions[1]) < GL_K:
-        balance(sub_partitions, 1)
+    # Original TDG behaviour for k-anonymity
+    if GL_L is None:
+        u, v = get_pair(partition)
+        sub_partitions = distribute_record(u, v, partition)
 
-    # If l-diversity is enabled, jefect the split if one of the
-    # resulting partitions violatedd the privacy constraints
-    if GL_L is not None:
-        if not all(is_valid_partition(p) for p in sub_partitions):
+        if len(sub_partitions[0]) < GL_K:
+            balance(sub_partitions, 0)
+        elif len(sub_partitions[1]) < GL_K:
+            balance(sub_partitions, 1)
+
+    # Modified behaviour for k-anonymity + l-diversity
+    else:
+        sub_partitions = find_valid_split(partition)
+
+        if sub_partitions is None:
             RESULT.append(partition)
             return
-    
-    # watch dog
-    p_sum = len(partition)
-    c_sum = 0
 
-    for sub_partition in sub_partitions:
-        c_sum += len(sub_partition)
+    # Watch dog
+    p_sum = len(partition)
+    c_sum = sum(len(p) for p in sub_partitions)
 
     if p_sum != c_sum:
         pdb.set_trace()
@@ -302,7 +323,7 @@ def init(att_trees, data, k, QI_num, SA_num, l=None, sensitive_index=None):
     reset all gloabl variables
     """
     global GL_K, GL_L, RESULT, QI_LEN, ATT_TREES
-    global QI_RANGE, IS_CAT, SA_INDEX, SENSIIVE_INDEX
+    global QI_RANGE, IS_CAT, SA_INDEX, SENSITIVE_INDEX
 
     ATT_TREES = att_trees
     IS_CAT = []
@@ -317,12 +338,12 @@ def init(att_trees, data, k, QI_num, SA_num, l=None, sensitive_index=None):
     SA_INDEX = SA_num
     GL_K = k
     GL_L = l
-    SENSIIVE_INDEX = sensitive_index
+    SENSITIVE_INDEX = sensitive_index
 
     if GL_L is not None and GL_L < 1:
         raise ValueError("l must be at least 1")
 
-    if GL_L is not None and SENSIIVE_INDEX is None:
+    if GL_L is not None and SENSITIVE_INDEX is None:
         raise ValueError("sensitive_index must be provided when l-diversity is enabled")
 
     RESULT = []
@@ -367,12 +388,12 @@ def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num, l=None, se
 def is_valid_partition(partition):
     # Check if a partition satisfies the privacy constraints (k, l)
     #k-anonymity
-    if len(partition) > GL_K:
+    if len(partition) < GL_K:
         return False
     
     #l-diversity, if enabled
     if GL_L is not None:
-        if not is_l_diverse(partition, GL_L, SENSIIVE_INDEX):
+        if not is_l_diverse(partition, GL_L, SENSITIVE_INDEX):
             return False
 
     return True
