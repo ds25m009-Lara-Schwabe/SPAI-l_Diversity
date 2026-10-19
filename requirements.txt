@@ -1,1 +1,6 @@
 pyyaml>=5.1
+numpy
+pandas
+scikit-learn
+tqdm
+matplotlib

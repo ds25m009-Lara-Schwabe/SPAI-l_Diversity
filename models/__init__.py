@@ -68,12 +68,13 @@ def classifier_evaluation(
         # Split train/test dataset
         
         # For supressed value, check only if index exists in dataframe
-        union = [i for i in train_indexes if i in list(one_hot_anon_df.index)]
+        anon_index = set(one_hot_anon_df.index)
+        union = [i for i in train_indexes if i in anon_index]
         train_features = one_hot_anon_df.loc[union]
         train_targets = [embeded_targets[i] for i in union]
         
         # For supressed value, check only if index exists in dataframe
-        union = [i for i in val_indexes if i in list(one_hot_anon_df.index)]
+        union = [i for i in val_indexes if i in anon_index]
         val_features = one_hot_anon_df.iloc[union]
         val_targets = [embeded_targets[i] for i in union]
     

@@ -10,7 +10,7 @@ from models import classifier_evaluation
 from datasets import get_dataset_params
 from algorithms import read_tree
 
-methods = ['mondrian', 'classic_mondrian', 'topdown'] #['cluster', 'datafly']
+methods = ['topdown'] #['cluster', 'datafly']
 dataset = ['adult', 'cahousing', 'cmc', 'mgm', 'informs']  # italia
 k_array = [i for i in range(10, 110, 10)]
 
@@ -168,8 +168,6 @@ def run_anon_data_ml():
                 for k in k_array:
                     anon_csv = os.path.join(result_path, data, method, f'{data}_anonymized_{k}.csv')
                     tmp_att_trees = ATT_TREES
-                    if method == 'classic_mondrian':
-                        tmp_att_trees = None
                     anon_f1 = classifier_evaluation(
                         classifier_name, 
                         ori_csv, 

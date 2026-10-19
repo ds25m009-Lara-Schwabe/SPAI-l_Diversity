@@ -4,15 +4,17 @@
 Main module of top down greedy anonymizaiton algorithm
 """
 
+import math
 import operator
 import pdb
 import random
 import time
+from collections import Counter
 from functools import cmp_to_key
 from tqdm import tqdm
 
-from algorithms.basic_mondrian.models.numrange import NumRange
-from algorithms.basic_mondrian.utils.utility import cmp_str, get_num_list_from_str
+from algorithms.utils.models.numrange import NumRange
+from algorithms.utils.utility import cmp_str, get_num_list_from_str
 
 __DEBUG = False
 QI_LEN = 5
@@ -23,6 +25,10 @@ QI_RANGE = []
 ROUNDS = 3
 IS_CAT = []
 SA_INDEX = []
+GL_L = 0
+SA_POS = -1
+LDIV_TYPE = 'distinct'
+GL_C = 1.0
 
 
 class Partition(object):
@@ -237,6 +243,90 @@ def balance(sub_partitions, index):
     sub_partitions.append(less)
 
 
+def is_l_diverse(counts, l, ldiv_type='distinct', c=1.0):
+    counts = [n for n in counts if n > 0]
+    if len(counts) < l:
+        return False
+    if ldiv_type == 'distinct':
+        return True
+    if ldiv_type == 'entropy':
+        total = float(sum(counts))
+        entropy = -sum(n / total * math.log(n / total) for n in counts)
+        return entropy >= math.log(l) - 1e-9
+    if ldiv_type == 'recursive':
+        r = sorted(counts, reverse=True)
+        return r[0] < c * sum(r[l - 1:])
+    raise ValueError('unknown l-diversity type ' + ldiv_type)
+
+
+def sa_count(records):
+    return Counter(record[SA_POS] for record in records)
+
+
+def is_valid(sa_counter):
+    if sum(sa_counter.values()) < GL_K:
+        return False
+    return is_l_diverse(sa_counter.values(), GL_L, LDIV_TYPE, GL_C)
+
+
+def diversity(sa_counter):
+    counts = [n for n in sa_counter.values() if n > 0]
+    if LDIV_TYPE == 'entropy':
+        total = float(sum(counts))
+        return (min(len(counts), GL_L), -sum(n / total * math.log(n / total) for n in counts))
+    if LDIV_TYPE == 'recursive':
+        r = sorted(counts, reverse=True)
+        return (min(len(counts), GL_L), GL_C * sum(r[GL_L - 1:]) - r[0])
+    return (min(len(counts), GL_L), 0)
+
+
+def balance_l(sub_partitions):
+    first, second = sub_partitions
+    first_count, second_count = sa_count(first.member), sa_count(second.member)
+    first_ok, second_ok = is_valid(first_count), is_valid(second_count)
+    if first_ok and second_ok:
+        return sub_partitions
+    if not first_ok and not second_ok:
+        return None
+    if first_ok:
+        less, more, less_count, more_count = second, first, second_count, first_count
+    else:
+        less, more, less_count, more_count = first, second, first_count, second_count
+
+    dist = [NCP_dis(less.middle, record)[0] for record in more.member]
+    order = sorted(range(len(more)), key=lambda i: dist[i])
+    moved = set()
+    for i in order:
+        if is_valid(less_count):
+            break
+        sa = more.member[i][SA_POS]
+        before = diversity(less_count)
+        less_count[sa] += 1
+        more_count[sa] -= 1
+        needs_size = sum(less_count.values()) <= GL_K
+        if (needs_size or diversity(less_count) > before) and is_valid(more_count):
+            moved.add(i)
+        else:
+            less_count[sa] -= 1
+            more_count[sa] += 1
+    if not is_valid(less_count):
+        return None
+
+    addition_set = [t for i, t in enumerate(more.member) if i in moved]
+    remain_set = [t for i, t in enumerate(more.member) if i not in moved]
+    split_ncp, less_mid = NCP_dis_merge(less, addition_set)
+    r_middle = middle_group(remain_set)
+    split_ncp += len(remain_set) * NCP(r_middle)
+    merge_ncp, _ = NCP_dis(less.middle, more.middle)
+    if split_ncp > merge_ncp * (len(less) + len(more)):
+        return None
+    less.member.extend(addition_set)
+    less.middle = less_mid
+    more.member = remain_set
+    more.middle = r_middle
+    return [less, more]
+
+
 def can_split(partition):
     """
     check if partition can be further splited.
@@ -258,7 +348,12 @@ def anonymize(partition):
         return
     u, v = get_pair(partition)
     sub_partitions = distribute_record(u, v, partition)
-    if len(sub_partitions[0]) < GL_K:
+    if GL_L > 0:
+        sub_partitions = balance_l(sub_partitions)
+        if sub_partitions is None:
+            RESULT.append(partition)
+            return
+    elif len(sub_partitions[0]) < GL_K:
         balance(sub_partitions, 0)
     elif len(sub_partitions[1]) < GL_K:
         balance(sub_partitions, 1)
@@ -273,12 +368,15 @@ def anonymize(partition):
         anonymize(sub_partition)
 
 
-def init(att_trees, data, k, QI_num, SA_num):
+def init(att_trees, data, k, QI_num, SA_num, l=0, sa_pos=-1, ldiv_type='distinct', c=1.0):
     """
     reset all gloabl variables
     """
     global GL_K, RESULT, QI_LEN, ATT_TREES, QI_RANGE, IS_CAT, SA_INDEX
+    global GL_L, SA_POS, LDIV_TYPE, GL_C
+    random.seed(0)
     ATT_TREES = att_trees
+    IS_CAT = []
     for t in att_trees:
         if isinstance(t, NumRange):
             IS_CAT.append(False)
@@ -287,16 +385,24 @@ def init(att_trees, data, k, QI_num, SA_num):
     QI_LEN = QI_num
     SA_INDEX = SA_num
     GL_K = k
+    GL_L = l
+    SA_POS = sa_pos
+    LDIV_TYPE = ldiv_type
+    GL_C = c
     RESULT = []
     QI_RANGE = []
 
 
-def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num):
+def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num,
+                                  l=0, sa_pos=-1, ldiv_type='distinct', c=1.0):
     """
     Top Down Greedy Anonymization is a heuristic algorithm
     for relational dataset with numeric and categorical attbitues
     """
-    init(att_trees, data, k, QI_num, SA_num)
+    init(att_trees, data, k, QI_num, SA_num, l, sa_pos, ldiv_type, c)
+    if GL_L > 0 and not is_valid(sa_count(data)):
+        raise ValueError('table is not %s %d-diverse, only %d different sa values'
+                         % (ldiv_type, l, len(sa_count(data))))
     result = []
     middle = []
     for i in tqdm(range(QI_LEN)):

@@ -3,6 +3,8 @@ import pickle
 import pandas as pd
 from tqdm import tqdm
 from sklearn import svm
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, f1_score
@@ -25,7 +27,7 @@ class KNN:
             class_names = None
         preds = self.model.predict(inputs)
         # return classification_report(targets, preds, target_names=class_names, output_dict=True)
-        return f1_score(targets, preds, labels=np.unique(preds), average='weighted')
+        return f1_score(targets, preds, average='weighted')
          
 
     def save_model(self, path):
@@ -40,7 +42,8 @@ class SVM:
     """
     def __init__(self) -> None:
         # One vs Rest classifier
-        self.model = svm.SVC(decision_function_shape = "ovr")
+        self.model = make_pipeline(
+            StandardScaler(), svm.SVC(decision_function_shape = "ovr"))
         
     def fit(self, inputs, targets):
         self.model = self.model.fit(inputs, targets)
@@ -49,7 +52,7 @@ class SVM:
         if len(class_names) == 0:
             class_names = None
         preds = self.model.predict(inputs)
-        return f1_score(targets, preds, labels=np.unique(preds), average='weighted')
+        return f1_score(targets, preds, average='weighted')
         # return classification_report(targets, preds, target_names=class_names, output_dict=True)
 
     def save_model(self, path):
@@ -77,7 +80,7 @@ class RFs:
         if len(class_names) == 0:
             class_names = None
         preds = self.model.predict(inputs)
-        return f1_score(targets, preds, labels=np.unique(preds), average='weighted')
+        return f1_score(targets, preds, average='weighted')
         # return classification_report(targets, preds, target_names=class_names, output_dict=True)
 
     def save_model(self, path):
@@ -116,7 +119,7 @@ def one_hot_encoding(df, qi_index, is_qi_cat):
     return df
 
 def embed_target(targets):
-    unique_labels = set(targets)
+    unique_labels = sorted(set(targets))
     label_to_idx = {v:i for i, v in enumerate(unique_labels)} 
     new_targets = [label_to_idx[i] for i in targets]
     return new_targets, label_to_idx
@@ -152,7 +155,8 @@ def replace_generalization(anon_df, columns, qi_index=None, is_cat=None, att_tre
         if att_trees is None:
             value_splits = value.split('~')
         else:
-            value_splits = att_trees[str(value)].get_leaves_names()
+            # leaf nodes have no leaves
+            value_splits = att_trees[str(value)].get_leaves_names() or [str(value)]
 
         return [key+'_'+i for i in value_splits]
 
@@ -209,7 +213,7 @@ if __name__ == '__main__':
 
     df = pd.read_csv('./data/italia/italia.csv', delimiter=';')
 
-    anon_df = pd.read_csv('./results/italia/mondrian/italia_anonymized_2.csv', delimiter=';')
+    anon_df = pd.read_csv('./results/italia/topdown/italia_anonymized_2.csv', delimiter=';')
     
     ATT_NAMES = list(df.columns)
 
