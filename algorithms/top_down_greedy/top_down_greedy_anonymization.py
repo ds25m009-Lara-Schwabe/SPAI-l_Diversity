@@ -401,7 +401,7 @@ def Top_Down_Greedy_Anonymization(att_trees, data, k, QI_num, SA_num,
     """
     init(att_trees, data, k, QI_num, SA_num, l, sa_pos, ldiv_type, c)
     if GL_L > 0 and not is_valid(sa_count(data)):
-        raise ValueError('table is not %s %d-diverse, only %d different sa values'
+        raise ValueError('table is not %s %d-diverse (%d different sa values)'
                          % (ldiv_type, l, len(sa_count(data))))
     result = []
     middle = []

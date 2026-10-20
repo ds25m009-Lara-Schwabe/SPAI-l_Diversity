@@ -41,6 +41,7 @@ class LDiversity:
             'homogeneous_records': 0,
             'violating_eqs': 0,
             'violating_records': 0,
+            'majority_share': 0.0,
         }
         for sa_count in self.eq_count.values():
             counts = list(sa_count.values())
@@ -48,6 +49,7 @@ class LDiversity:
             result['min_eq_size'] = min(result['min_eq_size'], size)
             result['min_distinct_l'] = min(result['min_distinct_l'], len(counts))
             result['min_entropy_l'] = min(result['min_entropy_l'], self.entropy_l(counts))
+            result['majority_share'] += max(counts) / len(self.anon_data)
             if len(counts) == 1:
                 result['homogeneous_eqs'] += 1
                 result['homogeneous_records'] += size

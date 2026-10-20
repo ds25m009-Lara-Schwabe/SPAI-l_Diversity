@@ -156,7 +156,8 @@ class Anonymizer:
         print(f"L-Diversity ({SA_var}): {ldiv_result['num_eqs']} ECs, "
               f"min distinct l: {ldiv_result['min_distinct_l']}, "
               f"min entropy l: {ldiv_result['min_entropy_l']:.2f}, "
-              f"homogeneous ECs: {ldiv_result['homogeneous_eqs']}")
+              f"homogeneous ECs: {ldiv_result['homogeneous_eqs']}, "
+              f"records with majority SA value of their EC: {ldiv_result['majority_share']:.1%}")
         if self.l > 0:
             print(f"ECs violating l={self.l}: {ldiv_result['violating_eqs']}")
 

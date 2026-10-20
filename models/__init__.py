@@ -32,7 +32,8 @@ def classifier_evaluation(
         val_indexes = [int(i) for i in data.splitlines()]
 
     df = pd.read_csv(raw_csv, delimiter=';')
-    
+    raw_position = {record_id: pos for pos, record_id in enumerate(df['ID'])}
+
     # Drop ID and Target columns (last column)
     df = df.drop(['ID'], axis=1)
     targets = list(df.iloc[:, -1])
@@ -52,6 +53,7 @@ def classifier_evaluation(
 
     if anon_csv is not None:
         anon_df = pd.read_csv(anon_csv, delimiter=';')
+        anon_positions = [raw_position[record_id] for record_id in anon_df['ID']]
         anon_df = anon_df.drop(['ID'], axis=1)
         anon_df = anon_df.drop(anon_df.columns[-1], axis=1)
 
@@ -62,6 +64,7 @@ def classifier_evaluation(
             qi_index=qi_index,
             is_cat=is_cat,
             att_trees=att_trees)
+        one_hot_anon_df.index = anon_positions
 
     if anon_csv is not None:
         # Train anonymized dataset
@@ -75,7 +78,7 @@ def classifier_evaluation(
         
         # For supressed value, check only if index exists in dataframe
         union = [i for i in val_indexes if i in anon_index]
-        val_features = one_hot_anon_df.iloc[union]
+        val_features = one_hot_anon_df.loc[union]
         val_targets = [embeded_targets[i] for i in union]
     
         # Fit

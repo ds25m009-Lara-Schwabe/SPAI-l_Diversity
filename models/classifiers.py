@@ -135,21 +135,34 @@ def replace_generalization(anon_df, columns, qi_index=None, is_cat=None, att_tre
         except:
             return key+'_'+value, 1
 
-    def get_mean(value):
+    def get_mean(value, full_mean=None):
         if isinstance(value, str):
             tmp = value.split('~')
             if len(tmp) == 2:
                 low, high = tmp
                 mean = float(low) + (float(high) - float(low))/2
                 return mean
-            else:
-                if '*' in value:
-                    low = float(value.replace('*', '0'))
-                    high = float(value.replace('*', '9'))
-                    return low+(high-low)/2
-                elif not value.isnumeric():
-                    return 0
+            if value == '*' and full_mean is not None:
+                return full_mean
+            if '*' in value:
+                low = float(value.replace('*', '0'))
+                high = float(value.replace('*', '9'))
+                return low+(high-low)/2
+            try:
+                return float(value)
+            except ValueError:
+                return 0
         return float(value)
+
+    full_means = {}
+    if att_trees is not None:
+        for qi_id, cat in enumerate(is_cat):
+            if not cat:
+                try:
+                    leaves = [float(v) for v in att_trees[qi_id]['*'].get_leaves_names()]
+                    full_means[qi_id] = sum(leaves) / len(leaves)
+                except (KeyError, ValueError, ZeroDivisionError):
+                    pass
 
     def get_caterogical_value(key, value, att_trees=None):
         if att_trees is None:
@@ -186,7 +199,7 @@ def replace_generalization(anon_df, columns, qi_index=None, is_cat=None, att_tre
                         atr_dict[new_key] = 1
                 else:
                     # If is numeric
-                    mean = get_mean(value)
+                    mean = get_mean(value, full_means.get(qi_id))
                     atr_dict[key] = mean
         tmp_list.append(atr_dict)
 

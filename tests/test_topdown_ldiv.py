@@ -9,6 +9,7 @@ from algorithms.top_down_greedy import tdg_ldiv_anonymize
 from algorithms.top_down_greedy.top_down_greedy_anonymization import is_l_diverse
 from datasets import get_sa_qi_params
 from metrics import LDiversity
+from models.classifiers import replace_generalization
 from utils.data import read_raw
 
 
@@ -47,6 +48,7 @@ class TestLDiversityMetric(unittest.TestCase):
         self.assertEqual(result['homogeneous_eqs'], 1)
         self.assertEqual(result['violating_eqs'], 1)
         self.assertFalse(result['satisfied'])
+        self.assertAlmostEqual(result['majority_share'], 4 / 6)
 
     def test_satisfied(self):
         self.data[4][3] = 'Bronchitis'
@@ -100,6 +102,14 @@ class TestTopDownLDiv(unittest.TestCase):
     def test_too_few_values(self):
         with self.assertRaises(ValueError):
             self.run_tdg(2, 50)
+
+
+class TestReplaceGeneralization(unittest.TestCase):
+
+    def test_numeric_values(self):
+        df = pd.DataFrame({'a': ['-122.2', '37.8', '41~48', '12']})
+        result = replace_generalization(df, ['a'], qi_index=[0], is_cat=[False])
+        self.assertEqual(result['a'].tolist(), [-122.2, 37.8, 44.5, 12.0])
 
 
 if __name__ == '__main__':

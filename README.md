@@ -28,35 +28,36 @@ We added l-diversity to Top-Down Greedy (`topdown`). The new method `topdown_ldi
 | `recursive` | r<sub>1</sub> < c (r<sub>l</sub> + ... + r<sub>m</sub>), set c with `--c` |
 
 ```
-python anonymize.py --method=topdown --k=10 --dataset=adult
-python anonymize.py --method=topdown_ldiv --k=10 --l=3 --dataset=adult
-python anonymize.py --method=topdown_ldiv --k=10 --l=4 --ldiv=entropy --dataset=adult
-python anonymize.py --method=topdown_ldiv --k=10 --l=3 --ldiv=recursive --c=2 --dataset=adult
+python anonymize.py --method=topdown --k=10 --dataset=cahousing
+python anonymize.py --method=topdown_ldiv --k=10 --l=2 --dataset=cahousing
+python anonymize.py --method=topdown_ldiv --k=10 --l=3 --dataset=cahousing
+python anonymize.py --method=topdown_ldiv --k=10 --l=2 --ldiv=entropy --dataset=cahousing
 ```
-- Default SA per dataset is in `datasets/__init__.py` (`adult`: occupation, `italia`: disease, others: class attribute). The SA is removed from the QIs.
-- The whole table has to be l-diverse, otherwise the run stops with an error.
-- Every run prints the number of ECs, min. distinct / entropy l, homogeneous ECs and ECs violating `--l`.
+- Default SA per dataset is in `datasets/__init__.py` (`cahousing`: ocean_proximity, 3 values, also the class). The SA is removed from the QIs.
+- The whole table has to be l-diverse, otherwise the run stops with an error (e.g. entropy l = 3 on cahousing).
+- Every run prints the number of ECs, min. distinct / entropy l, homogeneous ECs, the share of records that have the majority SA value of their EC, and ECs violating `--l`.
 - Output: `results/{dataset}/topdown_ldiv/{dataset}_anonymized_{k}_l{l}.csv`
 
 Experiments, demo and tests:
 ```
-python compare_topdown.py --dataset=adult              # experiments/adult_topdown_ldiv_results.csv + experiments/figures/
-python compare_topdown.py --dataset=adult --plot_only
-python demo_topdown.py --dataset=italia --k=2 --l=3   # ECs of both methods, experiments/italia_demo_k2_l3.md
+python compare_topdown.py                    # experiments/cahousing_topdown_ldiv_results.csv + experiments/figures/
+python compare_topdown.py --plot_only
+python demo_topdown.py                       # largest ECs of both methods, experiments/cahousing_demo_k10_l2.md
 python -m unittest discover tests
 ```
+`compare_topdown.py` runs TDG vs. TDG + l-diversity for k = 2 ... 100, compares three ways to handle splits that are not l-diverse (reject, retry 10 times, repair) and recursive (c, l)-diversity.
 
-Changed files: `algorithms/top_down_greedy/` (l-diversity check, split repair, fixed seed, reset of `IS_CAT`), `metrics/ldiv.py`, `anonymize.py` (`--l`, `--sa`, `--ldiv`, `--c`), `datasets/__init__.py`, `models/` (fixes in the classifier evaluation: leaf values were dropped from the features, F1 ignored classes that were never predicted, random label order, no scaling for SVM).
+Changed files: `algorithms/top_down_greedy/` (l-diversity check, split repair, fixed seed, reset of `IS_CAT`), `metrics/ldiv.py`, `anonymize.py` (`--l`, `--sa`, `--ldiv`, `--c`), `datasets/__init__.py`, `models/` (fixes in the classifier evaluation: numbers with a minus sign or decimal point became 0, anonymized rows were matched with the labels by position instead of ID, `*` is replaced by the mean of the attribute, leaf values were dropped from the features, F1 ignored classes that were never predicted, random label order, no scaling for SVM).
 
-Results on `adult` (k = 10, SA = occupation):
+Results on `cahousing` (k = 10, SA = ocean_proximity):
 
-| | NCP | ECs | min. distinct l | ECs < 3 values | F1 KNN / SVM / RF |
-|---|---|---|---|---|---|
-| original data | | | | | 0.762 / 0.823 / 0.814 |
-| `topdown` | 0.091 | 1,784 | 1 | 45 | 0.762 / 0.818 / 0.811 |
-| `topdown_ldiv` distinct l = 3 | 0.092 | 1,758 | 3 | 0 | 0.763 / 0.816 / 0.811 |
-| `topdown_ldiv` distinct l = 6 | 0.112 | 1,409 | 6 | 0 | 0.762 / 0.817 / 0.812 |
-| `topdown_ldiv` entropy l = 4 | 0.125 | 1,439 | 4 | 0 | 0.763 / 0.816 / 0.810 |
+| | NCP | homogeneous ECs | majority share | F1 KNN / SVM / RF |
+|---|---|---|---|---|
+| original data | | | | 0.543 / 0.859 / 0.953 |
+| `topdown` | 0.254 | 687 | 88% | 0.576 / 0.805 / 0.865 |
+| `topdown_ldiv` distinct l = 2 | 0.351 | 0 | 87% | 0.562 / 0.803 / 0.850 |
+| `topdown_ldiv` distinct l = 3 | 0.566 | 0 | 81% | 0.528 / 0.744 / 0.809 |
+| `topdown_ldiv` entropy l = 2 | 0.796 | 0 | 61% | 0.470 / 0.595 / 0.653 |
 
 Report and slides are in `report/`.
 

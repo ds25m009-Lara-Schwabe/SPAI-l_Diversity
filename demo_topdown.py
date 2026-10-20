@@ -12,9 +12,10 @@ from datasets import get_sa_qi_params
 from utils.data import anon_filename
 
 parser = argparse.ArgumentParser('Top-Down Greedy l-diversity demo')
-parser.add_argument('--dataset', type=str, default='italia')
-parser.add_argument('--k', type=int, default=2)
-parser.add_argument('--l', type=int, default=3)
+parser.add_argument('--dataset', type=str, default='cahousing')
+parser.add_argument('--k', type=int, default=10)
+parser.add_argument('--l', type=int, default=2)
+parser.add_argument('--rows', type=int, default=8)
 parser.add_argument('--sa', type=str, default=None)
 parser.add_argument('--out', type=str, default='experiments')
 
@@ -29,7 +30,7 @@ def equivalence_classes(csv_path, qi_names, sa):
         row['distinct'] = len(counts)
         row[sa] = ', '.join(f'{v} ({n})' for v, n in counts.most_common())
         rows.append(row)
-    return pd.DataFrame(rows).sort_values(['distinct', 'size']).reset_index(drop=True)
+    return pd.DataFrame(rows).sort_values(['distinct', 'size'], ascending=[True, False]).reset_index(drop=True)
 
 
 def main(args):
@@ -51,6 +52,8 @@ def main(args):
         title = (f"{method}: {scores['num_eqs']} ECs, NCP = {scores['ncp']:.3f}, "
                  f"homogeneous ECs = {scores['homogeneous_eqs']}, "
                  f"ECs violating l = {args.l}: {scores['violating_eqs']}")
+        if args.rows > 0:
+            ecs = ecs.head(args.rows)
         print('\n' + title)
         print(ecs.to_string())
         lines += ['## ' + title, '', '```', ecs.to_string(index=False), '```', '']
